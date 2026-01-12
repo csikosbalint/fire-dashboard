@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "env": {
+    "PREVIEW_PASSWORD": "@PREVIEW_PASSWORD"
+  },
+  "git": {
+    "deploymentEnabled": true
+  }
+}
