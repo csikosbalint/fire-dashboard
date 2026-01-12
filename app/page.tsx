@@ -118,7 +118,7 @@ export default function StockDashboard() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">
-            Market Data Dashboard
+            📈 Market Data Dashboard:
           </h1>
           <p className="text-slate-400">
             Fetch historical stock data with automatic 1-hour caching
