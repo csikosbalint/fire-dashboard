@@ -13,28 +13,26 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useSharpeStore } from '@/hooks/useSharpeStore';
-import { useSharpeCalculations } from '@/hooks/useSharpeCalculations';
+import { useTickers} from '@/hooks/useLocalstore';
+import { useSharpeRatios } from '@/hooks/useCalculations';
+import { SharpeResult } from '@/types';
 
 export default function SharpePage() {
   const [tickerInput, setTickerInput] = useState('');
   const [mounted, setMounted] = useState(false);
-  const { tickers, addTicker, removeTicker } = useSharpeStore();
-  const results = useSharpeCalculations(tickers);
-
+  const { tickers, addTicker, removeTicker } = useTickers();
+  const { calculateSharpe} = useSharpeRatios();
+  const [results, setResults] = useState<SharpeResult[]>([]);
   // Prevent hydration mismatch by only rendering after mount
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Log errors to console
+
   useEffect(() => {
-    results.forEach((result) => {
-      if (result.error) {
-        console.warn(`[Sharpe Calculator] Error for ${result.ticker}:`, result.error);
-      }
-    });
-  }, [results]);
+    calculateSharpe(tickers)
+      .then(sharpeRatios => setResults(sharpeRatios));
+  }, [tickers, calculateSharpe]);
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && tickerInput.trim()) {
@@ -45,7 +43,7 @@ export default function SharpePage() {
 
   const formatSharpeValue = (value: number | null): string => {
     if (value === null) return '-';
-    return value.toFixed(2);
+    return value?.toFixed(2);
   };
 
   if (!mounted) {
@@ -139,7 +137,7 @@ export default function SharpePage() {
                             <span className="text-red-400 text-xs">Error</span>
                           ) : (
                             <span className="text-slate-200 font-semibold">
-                              {formatSharpeValue(result.today)}
+                              {formatSharpeValue(result.yesterday)}
                             </span>
                           )}
                         </TableCell>
@@ -148,7 +146,7 @@ export default function SharpePage() {
                             <Skeleton className="h-5 w-full bg-slate-700" />
                           ) : (
                             <span className="text-slate-300">
-                              {formatSharpeValue(result.week)}
+                              {formatSharpeValue(result.lastWeek)}
                             </span>
                           )}
                         </TableCell>
@@ -157,7 +155,7 @@ export default function SharpePage() {
                             <Skeleton className="h-5 w-full bg-slate-700" />
                           ) : (
                             <span className="text-slate-300">
-                              {formatSharpeValue(result.month)}
+                              {formatSharpeValue(result.lastMonth)}
                             </span>
                           )}
                         </TableCell>
@@ -166,7 +164,7 @@ export default function SharpePage() {
                             <Skeleton className="h-5 w-full bg-slate-700" />
                           ) : (
                             <span className="text-slate-300">
-                              {formatSharpeValue(result.quarter)}
+                              {formatSharpeValue(result.lastQuarter)}
                             </span>
                           )}
                         </TableCell>
@@ -175,7 +173,7 @@ export default function SharpePage() {
                             <Skeleton className="h-5 w-full bg-slate-700" />
                           ) : (
                             <span className="text-slate-300">
-                              {formatSharpeValue(result.semiAnnual)}
+                              {formatSharpeValue(result.lastSemester)}
                             </span>
                           )}
                         </TableCell>
@@ -184,7 +182,7 @@ export default function SharpePage() {
                             <Skeleton className="h-5 w-full bg-slate-700" />
                           ) : (
                             <span className="text-slate-300">
-                              {formatSharpeValue(result.year)}
+                              {formatSharpeValue(result.lastYear)}
                             </span>
                           )}
                         </TableCell>

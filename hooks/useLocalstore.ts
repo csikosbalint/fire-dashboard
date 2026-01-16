@@ -1,14 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { SharpeStore } from '@/types';
 
-interface SharpeStore {
-  tickers: string[];
-  addTicker: (ticker: string) => void;
-  removeTicker: (ticker: string) => void;
-  clearTickers: () => void;
-}
-
-export const useSharpeStore = create<SharpeStore>()(
+export const useTickers = create<SharpeStore>()(
   persist(
     (set) => ({
       tickers: [],
