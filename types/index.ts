@@ -7,6 +7,9 @@ export interface HistoricalData {
   open: number;
   high: number;
   low: number;
+  sharpeRatio1Y?: number;
+  trailingReturn1Y?: number;
+  stdDev1Y?: number;
 }
 
 export interface StockDataResult {
@@ -35,4 +38,8 @@ export interface SharpeStore {
   addTicker: (ticker: string) => void;
   removeTicker: (ticker: string) => void;
   clearTickers: () => void;
+}
+
+export enum CalculationPeriod {
+  Y1 = '1y',
 }

@@ -1,172 +1,113 @@
-import type { HistoricalData, SharpeResult } from '@/types';
+import { CalculationPeriod, HistoricalData, SharpeResult } from '@/types';
+import { calculateStandardDeviation } from '@railpath/finance-toolkit';
+const FISC_YEAR_DAYS = 250; // Trading days in a year
 
-const YEAR = 253; // Trading days in a year
-
-// Calculate annualized Sharpe ratio
-function calculateSharpeRatio({
-  annualReturn,
-  deviation,
-  riskFreeRate = 0.045
-}: {
-  annualReturn: number;
-  deviation: number;
-  riskFreeRate?: number;
-}): number | null {
-  if (deviation === 0) return null;
-  return (annualReturn - riskFreeRate) / deviation;
+function enhanceWithSimpleSharpe({ historicalData, period = CalculationPeriod.Y1 }: { historicalData: HistoricalData[]; period?: CalculationPeriod }): void {
+  historicalData.forEach((quote, index) => {
+    const isEnoughPrice = index >= FISC_YEAR_DAYS;
+    if (!isEnoughPrice) return;
+    quote.trailingReturn1Y = isEnoughPrice ? Number((((quote.close - historicalData[index - FISC_YEAR_DAYS].close) / historicalData[index - FISC_YEAR_DAYS].close) * 100).toFixed(2)) : undefined;
+    const isDataEnough = quote.trailingReturn1Y !== undefined && index >= 2 * FISC_YEAR_DAYS;
+    if (!isDataEnough) return;
+    quote.stdDev1Y = isDataEnough ? Number(calculateStandardDeviation(historicalData.slice(index - FISC_YEAR_DAYS, index + 1).map(d => Number(d.trailingReturn1Y))).toFixed(2)) : undefined;
+    quote.sharpeRatio1Y = isDataEnough ? Number((quote.trailingReturn1Y! / quote.stdDev1Y!).toFixed(2)) : undefined;
+  });
 }
 
-// Calculate annual deviation
-function calcualteAnnualDeviation({ 
-  data, 
-  withDailyReturnCalculation 
-}: { 
-  data: HistoricalData[]; 
-  withDailyReturnCalculation: boolean; 
-}): number {
-  if (data.length < 2) throw new Error("Insufficient data length for annual deviation calculation");
+async function fetchStockData(tickers: string[]): Promise<{ ticker: string; historicalData: HistoricalData[] | null; error?: string }[]> {
+  const promises = tickers.map(async (ticker) => {
+    try {
+      const response = await fetch('/api/stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tickers: [ticker] }),
+      });
 
-  let returns: number[];
+      if (!response.ok) {
+        throw new Error('Failed to fetch data');
+      }
 
-  if (withDailyReturnCalculation) {
-    // Calculate daily returns from the data
-    returns = [];
-    for (let i = 1; i < data.length; i++) {
-      const pastPrice = data[i - 1].close;
-      const currentPrice = data[i].close;
-      const dailyReturn = (currentPrice - pastPrice) / pastPrice;
-      returns.push(dailyReturn);
+      const data = await response.json();
+      const stockData = data[0];
+
+      if (stockData.error || !stockData.historicalData) {
+        throw new Error(stockData.error || 'No data available');
+      }
+
+      const historicalData = stockData.historicalData.slice(1).reverse() as HistoricalData[];
+      return { ticker, historicalData };
+    } catch (error) {
+      return {
+        ticker,
+        historicalData: null,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
-  } else {
-    // Assume data already contains returns
-    returns = data.filter(d => d.return !== undefined).map(d => d.return);
-  }
+  });
 
-  if (returns.length === 0) throw new Error("Insufficient returns data for annual deviation calculation");
-
-  // Calculate average return
-  const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-
-  // Calculate variance
-  const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length;
-
-  // Calculate standard deviation
-  const stdDev = Math.sqrt(variance);
-
-  // Annualize the standard deviation
-  const annualizedStdDev = stdDev * Math.sqrt(YEAR);
-
-  return annualizedStdDev;
+  return Promise.all(promises);
 }
 
-// Calculate annual return over the past year
-function calculateAnnualReturn({data}: {data: HistoricalData[]}): number {
-  if (data.length < YEAR + 1) throw new Error("Insufficient data length for annual return calculation");
-  
-  const latestPrice = data[0].close;
-  const yearAgoPrice = data[YEAR-1].close;
-  
-  return (latestPrice - yearAgoPrice) / yearAgoPrice;
-}
+function calculateSharpeFromData(historicalData: HistoricalData[], ticker?: string): Omit<SharpeResult, 'ticker' | 'loading'> {
+  try {
+    enhanceWithSimpleSharpe({ historicalData });
 
-async function calculateSharpe(tickers: string[]): Promise<SharpeResult[]> {
-
-    if (tickers.length === 0) {
-      return [];
-    }
-
-    // Add loading states for new tickers
-    let results: SharpeResult[] = tickers.map((ticker) => ({
-      ticker,
+    return {
+      yesterday: historicalData[historicalData.length - 1].sharpeRatio1Y || null,
+      lastWeek: historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 52)]?.sharpeRatio1Y || null,
+      lastMonth: historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 12)]?.sharpeRatio1Y || null,
+      lastQuarter: historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 4)]?.sharpeRatio1Y || null,
+      lastSemester: historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 2)]?.sharpeRatio1Y || null,
+      lastYear: historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS)]?.sharpeRatio1Y || null,
+    };
+  } catch (error) {
+    return {
       yesterday: null,
       lastWeek: null,
       lastMonth: null,
       lastQuarter: null,
       lastSemester: null,
       lastYear: null,
-      loading: true,
-    }));
-
-    // Fetch and calculate for new tickers only
-    const fetchAndCalculate = async (tickersToFetch: string[]) => {
-      const promises = tickersToFetch.map(async (ticker) => {
-        return new Promise<SharpeResult>(async (resolve, reject) => {
-          try {
-            const response = await fetch('/api/stock', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ tickers: [ticker] }),
-            });
-
-            if (!response.ok) {
-              throw new Error('Failed to fetch data');
-            }
-
-            const data = await response.json();
-            const stockData = data[0];
-
-            if (stockData.error || !stockData.historicalData) {
-              throw new Error(stockData.error || 'No data available');
-            }
-
-            const historicalData = stockData.historicalData.slice(1); // Remove the most recent day to avoid incomplete data
-            const yesterdayReturns = calculateAnnualReturn({data: historicalData});
-            const lastWeekReturns = calculateAnnualReturn({data: historicalData.slice(Math.ceil(YEAR / 52))});
-            const lastMonthReturns = calculateAnnualReturn({data: historicalData.slice(Math.ceil(YEAR / 12))});
-            const lastQuarterReturns = calculateAnnualReturn({data: historicalData.slice(Math.ceil(YEAR / 4))});
-            const lastSemesterReturns = calculateAnnualReturn({data: historicalData.slice(Math.ceil(YEAR / 2))});
-            const lastYearReturns = calculateAnnualReturn({data: historicalData.slice(YEAR)});
-            const yesterdayDeviation = calcualteAnnualDeviation({ data: historicalData, withDailyReturnCalculation: true });
-            const lastWeekDeviation = calcualteAnnualDeviation({ data: historicalData.slice(Math.ceil(YEAR / 52)), withDailyReturnCalculation: true });
-            const lastMonthDeviation = calcualteAnnualDeviation({ data: historicalData.slice(Math.ceil(YEAR / 12)), withDailyReturnCalculation: true });
-            const lastQuarterDeviation = calcualteAnnualDeviation({ data: historicalData.slice(Math.ceil(YEAR / 4)), withDailyReturnCalculation: true });
-            const lastSemesterDeviation = calcualteAnnualDeviation({ data: historicalData.slice(Math.ceil(YEAR / 2)), withDailyReturnCalculation: true });
-            const lastYearDeviation = calcualteAnnualDeviation({ data: historicalData.slice(YEAR), withDailyReturnCalculation: true });
-            const result: SharpeResult = {
-              ticker,
-              yesterday: calculateSharpeRatio({annualReturn: yesterdayReturns, deviation: yesterdayDeviation}),
-              lastWeek: calculateSharpeRatio({annualReturn: lastWeekReturns, deviation: lastWeekDeviation}),
-              lastMonth: calculateSharpeRatio({annualReturn: lastMonthReturns, deviation: lastMonthDeviation}),
-              lastQuarter: calculateSharpeRatio({annualReturn: lastQuarterReturns, deviation: lastQuarterDeviation}),
-              lastSemester: calculateSharpeRatio({annualReturn: lastSemesterReturns, deviation: lastSemesterDeviation}),
-              lastYear: calculateSharpeRatio({annualReturn: lastYearReturns, deviation: lastYearDeviation}),
-              loading: false,
-            };
-            resolve(result);
-          } catch (error) {
-            const errorResult: SharpeResult = {
-              ticker,
-              yesterday: null,
-              lastWeek: null,
-              lastMonth: null,
-              lastQuarter: null,
-              lastSemester: null,
-              lastYear: null,
-              loading: false,
-              error: error instanceof Error ? error.message : 'Unknown error',
-            };
-            reject(errorResult);
-          }
-        });
-      });
-      return Promise.allSettled(promises).then((settledResults) => {
-        return settledResults.map((res) => {
-          if (res.status === 'fulfilled') {
-            return res.value;
-          } else {
-            return res.reason;
-          }
-        });
-      });
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
+  }
+}
 
-    results = await fetchAndCalculate(tickers);
+async function calculateSharpe(tickers: string[]): Promise<SharpeResult[]> {
+  if (tickers.length === 0) {
+    return [];
+  }
 
-  return results;
+  const fetchedData = await fetchStockData(tickers);
+
+  return fetchedData.map((data) => {
+    if (!data.historicalData || data.error) {
+      return {
+        ticker: data.ticker,
+        yesterday: null,
+        lastWeek: null,
+        lastMonth: null,
+        lastQuarter: null,
+        lastSemester: null,
+        lastYear: null,
+        loading: false,
+        error: data.error,
+      };
+    }
+
+    const calculations = calculateSharpeFromData(data.historicalData, data.ticker);
+    return {
+      ticker: data.ticker,
+      ...calculations,
+      loading: false,
+    };
+  });
 }
 
 export function useSharpeRatios() {
   return {
-    calculateSharpe
+    calculateSharpe,
+    calculateSharpeFromData,
+    fetchStockData,
   };
 }
