@@ -1168,7 +1168,7 @@ export default function SharpePage() {
 
   const formatSharpeValue = (value: number | null): string => {
     if (value === null) return '-';
-    return value?.toFixed(2);
+    return value.toFixed(2);
   };
 
   if (!mounted) {
