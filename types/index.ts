@@ -1,6 +1,5 @@
 // Stock-related types
 export interface HistoricalData {
-  return?: any;
   date: string;
   close: number;
   volume: number;
