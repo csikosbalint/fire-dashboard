@@ -1,54 +1,36 @@
 import { unstable_cache } from 'next/cache';
 import YahooFinance from 'yahoo-finance2';
+import type { HistoricalData, StockDataResult } from '@/types';
 
 const yahooFinance = new YahooFinance();
-
-interface HistoricalData {
-  date: string;
-  close: number;
-  volume: number;
-  open: number;
-  high: number;
-  low: number;
-}
-
-export interface StockDataResult {
-  ticker: string;
-  historicalData: HistoricalData[];
-  daysCount: number;
-  error?: string;
-}
-
-// Helper function to format date as YYYY-MM-DD
-function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0];
-}
 
 // Create a cached version of the fetch function
 // This will cache for 1 hour (3600 seconds)
 const getCachedStockData = unstable_cache(
   async (ticker: string): Promise<HistoricalData[]> => {
     try {
-      // Fetch last 100 days of historical data
+      // Fetch last 3 years of historical data
       const endDate = new Date();
-      const startDate = new Date(endDate.getTime() - 100 * 24 * 60 * 60 * 1000);
+      const startDate = new Date(endDate.getTime() - 3 * 365 * 24 * 60 * 60 * 1000);
 
-      const quotes = await yahooFinance.historical(ticker, {
+      const result = await yahooFinance.chart(ticker, {
         period1: startDate,
         period2: endDate,
+        interval: '1d',
       });
+      
+      const quotes = result.quotes;
 
       const historicalData: HistoricalData[] = (quotes as any[])
-        .map((quote: any) => ({
-          date: formatDate(quote.date),
-          close: quote.close || 0,
-          volume: quote.volume || 0,
-          open: quote.open || 0,
-          high: quote.high || 0,
-          low: quote.low || 0,
+        .map(({date, close, volume, open, high, low}) => ({
+          date: date,
+          close: close || 0,
+          volume: volume || 0,
+          open: open || 0,
+          high: high || 0,
+          low: low || 0,
         }))
-        .filter((data) => data.close > 0)
-        .reverse(); // Most recent first
+      .reverse(); // Ensure data is in descending order (most recent first)
 
       return historicalData;
     } catch (error) {
