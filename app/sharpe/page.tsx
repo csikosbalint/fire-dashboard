@@ -1218,22 +1218,22 @@ export default function SharpePage() {
                         Ticker
                       </TableHead>
                       <TableHead className="text-slate-300 font-semibold text-right w-24">
-                        D
+                        <abbr title="Daily">D</abbr>
                       </TableHead>
                       <TableHead className="text-slate-400 text-right w-24">
-                        W
+                        <abbr title="Weekly">W</abbr>
                       </TableHead>
                       <TableHead className="text-slate-400 text-right w-24">
-                        M
+                        <abbr title="Monthly">M</abbr>
                       </TableHead>
                       <TableHead className="text-slate-400 text-right w-24">
-                        Q
+                        <abbr title="Quarterly">Q</abbr>
                       </TableHead>
                       <TableHead className="text-slate-400 text-right w-24">
-                        S
+                        <abbr title="Semiannual">S</abbr>
                       </TableHead>
                       <TableHead className="text-slate-400 text-right w-24">
-                        Y
+                        <abbr title="Yearly">Y</abbr>
                       </TableHead>
                     </TableRow>
                   </TableHeader>
