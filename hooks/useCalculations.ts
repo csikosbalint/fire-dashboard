@@ -4,12 +4,18 @@ const FISC_YEAR_DAYS = 250; // Trading days in a year
 
 function enhanceWithSimpleSharpe({ historicalData, period = CalculationPeriod.Y1 }: { historicalData: HistoricalData[]; period?: CalculationPeriod }): void {
   historicalData.forEach((quote, index) => {
-    const isEnoughPrice = index >= FISC_YEAR_DAYS;
-    if (!isEnoughPrice) return;
+    const isEnoughPrice = index >= FISC_YEAR_DAYS; // we need 1 period of price data to calculate trailing(period) return
+    if (!isEnoughPrice) return; // first trailing(period) return calculation
     quote.trailingReturn1Y = isEnoughPrice ? Number((((quote.close - historicalData[index - FISC_YEAR_DAYS].close) / historicalData[index - FISC_YEAR_DAYS].close) * 100).toFixed(2)) : undefined;
-    const isDataEnough = quote.trailingReturn1Y !== undefined && index >= 2 * FISC_YEAR_DAYS;
-    if (!isDataEnough) return;
-    quote.stdDev1Y = isDataEnough ? Number(calculateStandardDeviation(historicalData.slice(index - FISC_YEAR_DAYS, index + 1).map(d => Number(d.trailingReturn1Y))).toFixed(2)) : undefined;
+    const isDataEnough = index >= 2 * FISC_YEAR_DAYS; // we need +1 period of trailing returns to calculate stddev(period) from trailing returns
+    if (!isDataEnough) return; // first stddev(period)
+    quote.stdDev1Y = isDataEnough ? Number(
+      calculateStandardDeviation(
+        historicalData.slice(index - FISC_YEAR_DAYS, index)
+          .map(d => Number(d.trailingReturn1Y))
+      ).toFixed(2))
+      : undefined;
+    // my simplified sharpe ratio = trailingReturn(period) / stddev(period)
     quote.sharpeRatio1Y = isDataEnough ? Number((quote.trailingReturn1Y! / quote.stdDev1Y!).toFixed(2)) : undefined;
   });
 }
@@ -53,7 +59,7 @@ function calculateSharpeFromData(historicalData: HistoricalData[], ticker?: stri
     enhanceWithSimpleSharpe({ historicalData });
 
     return {
-      yesterday: historicalData[historicalData.length - 1].sharpeRatio1Y || null,
+      yesterday: `${historicalData[historicalData.length - 1].sharpeRatio1Y}(${historicalData[historicalData.length - 1].trailingReturn1Y}/${historicalData[historicalData.length - 1].stdDev1Y})`,
       lastWeek: historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 52)]?.sharpeRatio1Y || null,
       lastMonth: historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 12)]?.sharpeRatio1Y || null,
       lastQuarter: historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 4)]?.sharpeRatio1Y || null,
