@@ -1157,7 +1157,7 @@ export default function SharpePage() {
   useEffect(() => {
     calculateSharpe(tickers)
       .then(sharpeRatios => setResults(sharpeRatios));
-  }, [tickers, calculateSharpe]);
+  }, [tickers]);
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && tickerInput.trim()) {
