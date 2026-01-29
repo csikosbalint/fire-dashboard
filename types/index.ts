@@ -21,7 +21,7 @@ export interface StockDataResult {
 // Sharpe calculation types
 export interface SharpeResult {
   ticker: string;
-  yesterday: number | null;
+  yesterday: string | null;
   lastWeek: number | null;
   lastMonth: number | null;
   lastQuarter: number | null;

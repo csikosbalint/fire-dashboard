@@ -1262,7 +1262,7 @@ export default function SharpePage() {
                             <span className="text-red-400 text-xs">Error</span>
                           ) : (
                             <span className="text-slate-200 font-semibold">
-                              {formatSharpeValue(result.yesterday)}
+                              {result.yesterday}
                             </span>
                           )}
                         </TableCell>
