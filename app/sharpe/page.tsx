@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useTickers} from '@/hooks/useLocalstore';
+import { useTickers } from '@/hooks/useLocalStore';
 import { useSharpeRatios } from '@/hooks/useCalculations';
 import { HistoricalData, SharpeResult } from '@/types';
 
