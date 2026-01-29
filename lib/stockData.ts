@@ -4,6 +4,11 @@ import type { HistoricalData, StockDataResult } from '@/types';
 
 const yahooFinance = new YahooFinance();
 
+// Helper function to format date as YYYY-MM-DD
+function formatDate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
 // Create a cached version of the fetch function
 // This will cache for 1 hour (3600 seconds)
 const getCachedStockData = unstable_cache(
@@ -22,15 +27,16 @@ const getCachedStockData = unstable_cache(
       const quotes = result.quotes;
 
       const historicalData: HistoricalData[] = (quotes as any[])
-        .map(({date, close, volume, open, high, low}) => ({
-          date: date,
-          close: close || 0,
-          volume: volume || 0,
-          open: open || 0,
-          high: high || 0,
-          low: low || 0,
+        .map((quote: any) => ({
+          date: formatDate(quote.date),
+          close: quote.close || 0,
+          volume: quote.volume || 0,
+          open: quote.open || 0,
+          high: quote.high || 0,
+          low: quote.low || 0,
         }))
-      .reverse(); // Ensure data is in descending order (most recent first)
+        .filter((data) => data.close > 0)
+        .reverse(); // Most recent first
 
       return historicalData;
     } catch (error) {
