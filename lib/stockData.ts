@@ -1,23 +1,8 @@
 import { unstable_cache } from 'next/cache';
 import YahooFinance from 'yahoo-finance2';
+import type { HistoricalData, StockDataResult } from '@/types';
 
 const yahooFinance = new YahooFinance();
-
-interface HistoricalData {
-  date: string;
-  close: number;
-  volume: number;
-  open: number;
-  high: number;
-  low: number;
-}
-
-export interface StockDataResult {
-  ticker: string;
-  historicalData: HistoricalData[];
-  daysCount: number;
-  error?: string;
-}
 
 // Helper function to format date as YYYY-MM-DD
 function formatDate(date: Date): string {
@@ -29,14 +14,17 @@ function formatDate(date: Date): string {
 const getCachedStockData = unstable_cache(
   async (ticker: string): Promise<HistoricalData[]> => {
     try {
-      // Fetch last 100 days of historical data
+      // Fetch last 3 years of historical data
       const endDate = new Date();
-      const startDate = new Date(endDate.getTime() - 100 * 24 * 60 * 60 * 1000);
+      const startDate = new Date(endDate.getTime() - 3 * 365 * 24 * 60 * 60 * 1000);
 
-      const quotes = await yahooFinance.historical(ticker, {
+      const result = await yahooFinance.chart(ticker, {
         period1: startDate,
         period2: endDate,
+        interval: '1d',
       });
+      
+      const quotes = result.quotes;
 
       const historicalData: HistoricalData[] = (quotes as any[])
         .map((quote: any) => ({
