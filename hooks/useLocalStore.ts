@@ -6,6 +6,7 @@ export const useTickers = create<SharpeStore>()(
   persist(
     (set) => ({
       tickers: [],
+      lookback: 250,
       addTicker: (ticker) =>
         set((state) => {
           const upperTicker = ticker.toUpperCase().trim();
@@ -19,6 +20,10 @@ export const useTickers = create<SharpeStore>()(
           tickers: state.tickers.filter((t) => t !== ticker),
         })),
       clearTickers: () => set({ tickers: [] }),
+      setLookback: (lookback) =>
+        set({
+          lookback: Math.min(1000, Math.max(1, Math.round(lookback || 1))),
+        }),
     }),
     {
       name: 'sharpe-tickers-storage',

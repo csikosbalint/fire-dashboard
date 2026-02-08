@@ -16,14 +16,16 @@ const getCachedStockData = unstable_cache(
     try {
       // Fetch last 3 years of historical data
       const endDate = new Date();
-      const startDate = new Date(endDate.getTime() - 3 * 365 * 24 * 60 * 60 * 1000);
+      endDate.setUTCDate(endDate.getUTCDate() - 1); // yesterday (UTC)
+      const startDate = new Date(endDate);
+      startDate.setUTCFullYear(startDate.getUTCFullYear() - 3);
 
       const result = await yahooFinance.chart(ticker, {
         period1: startDate,
         period2: endDate,
         interval: '1d',
       });
-      
+
       const quotes = result.quotes;
 
       const historicalData: HistoricalData[] = (quotes as any[])

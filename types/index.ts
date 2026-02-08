@@ -21,13 +21,13 @@ export interface StockDataResult {
 // Sharpe calculation types
 export interface SharpeResult {
   ticker: string;
-  yesterday: number | null;
-  lastWeek: number | null;
-  lastMonth: number | null;
-  lastQuarter: number | null;
-  lastSemester: number | null;
-  lastYear: number | null;
-  loading: boolean;
+  yesterday: string | null;
+  lastWeek: string | null;
+  lastMonth: string | null;
+  lastQuarter: string | null;
+  lastSemester: string | null;
+  lastYear: string | null;
+  loading?: boolean;
   error?: string;
 }
 
@@ -37,6 +37,8 @@ export interface SharpeStore {
   addTicker: (ticker: string) => void;
   removeTicker: (ticker: string) => void;
   clearTickers: () => void;
+  lookback: number;
+  setLookback: (lookback: number) => void;
 }
 
 export enum CalculationPeriod {
