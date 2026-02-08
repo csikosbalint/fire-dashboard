@@ -20,14 +20,14 @@ export interface StockDataResult {
 
 // Sharpe calculation types
 export interface SharpeResult {
-  ticker: string;
+  ticker: string | null;
   yesterday: string | null;
-  lastWeek: number | null;
-  lastMonth: number | null;
-  lastQuarter: number | null;
-  lastSemester: number | null;
-  lastYear: number | null;
-  loading: boolean;
+  lastWeek: string | null;
+  lastMonth: string | null;
+  lastQuarter: string | null;
+  lastSemester: string | null;
+  lastYear: string | null;
+  loading?: boolean;
   error?: string;
 }
 
