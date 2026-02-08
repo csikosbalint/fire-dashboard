@@ -2298,7 +2298,9 @@ export default function SharpePage() {
     250: '1 year',
     500: '2 years',
   };
-  const lookbackIndex = lookbackOptions.indexOf(lookback);
+  const lookbackIndex = lookbackOptions.indexOf(
+    lookback as (typeof lookbackOptions)[number]
+  );
 
   useEffect(() => {
     if (lookbackIndex === -1) {
