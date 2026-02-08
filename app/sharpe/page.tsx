@@ -20,7 +20,7 @@ import { HistoricalData, SharpeResult } from '@/types';
 export default function SharpePage() {
   const [tickerInput, setTickerInput] = useState('');
   const [mounted, setMounted] = useState(false);
-  const { tickers, addTicker, removeTicker } = useTickers();
+  const { tickers, addTicker, removeTicker, lookback, setLookback } = useTickers();
   const { calculateSharpe, calculateSharpeFromData } = useSharpeRatios();
   const [results, setResults] = useState<SharpeResult[]>([]);
   const [test, setTest] = useState<SharpeResult[]>([]);
@@ -2272,14 +2272,47 @@ export default function SharpePage() {
       '11-14-2013',
     ];
     const alldata = testdata.map((d, i) => ({ close: d, date: testdates[i] })) as HistoricalData[];
-    setTest([{ ticker: 'TEST', ...calculateSharpeFromData(alldata.slice(alldata.length - 3 * 250), 'TEST'), loading: false }]);
-  }, [setTest]);
+    setTest([
+      {
+        ticker: 'TEST',
+        ...calculateSharpeFromData(
+          alldata.slice(alldata.length - 3 * lookback),
+          'TEST',
+          lookback
+        ),
+        loading: false,
+      },
+    ]);
+  }, [lookback, setTest, calculateSharpeFromData]);
 
 
   useEffect(() => {
-    calculateSharpe(tickers)
+    calculateSharpe(tickers, lookback)
       .then(sharpeRatios => setResults(sharpeRatios));
-  }, [tickers]);
+  }, [tickers, lookback, calculateSharpe]);
+
+  const lookbackOptions = [62, 125, 250, 500] as const;
+  const lookbackLabels: Record<number, string> = {
+    62: '3 months',
+    125: '6 months',
+    250: '1 year',
+    500: '2 years',
+  };
+  const lookbackIndex = lookbackOptions.indexOf(lookback);
+
+  useEffect(() => {
+    if (lookbackIndex === -1) {
+      setLookback(lookbackOptions[lookbackOptions.length - 1]);
+    }
+  }, [lookbackIndex, setLookback]);
+
+  const handleLookbackChange = (value: string) => {
+    const nextIndex = Number(value);
+    if (Number.isNaN(nextIndex) || nextIndex < 0 || nextIndex >= lookbackOptions.length) {
+      return;
+    }
+    setLookback(lookbackOptions[nextIndex]);
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && tickerInput.trim()) {
@@ -2315,14 +2348,51 @@ export default function SharpePage() {
           </CardHeader>
           <CardContent>
             {/* Input Field */}
-            <div className="mb-6">
-              <Input
-                placeholder="Enter ticker (e.g., AAPL) and press Enter"
-                value={tickerInput}
-                onChange={(e) => setTickerInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                className="max-w-sm bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
-              />
+            <div className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+              <div className="rounded-lg border border-slate-700/60 bg-slate-900/30 p-4">
+                <label className="mb-2 block text-sm text-slate-400">
+                  Ticker input
+                </label>
+                <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+                  <span>Press Enter to add</span>
+                  <span>One ticker at a time</span>
+                </div>
+                <Input
+                  placeholder="Enter ticker (e.g., AAPL)"
+                  value={tickerInput}
+                  onChange={(e) => setTickerInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  className="h-11 bg-slate-700/80 border-slate-600 text-white placeholder:text-slate-400"
+                />
+              </div>
+              <div className="rounded-lg border border-slate-700/60 bg-slate-900/30 p-4">
+                <label className="mb-2 block text-sm text-slate-400">
+                  Lookback (days)
+                </label>
+                <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+                  <span>{lookback}</span>
+                  <span>{lookbackLabels[lookback] ?? ''}</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={lookbackOptions.length - 1}
+                  step={1}
+                  value={Math.max(0, lookbackIndex)}
+                  onChange={(e) => handleLookbackChange(e.target.value)}
+                  className="w-full accent-blue-500"
+                />
+                <div className="mt-2 flex justify-between text-xs text-slate-400">
+                  {lookbackOptions.map((value) => (
+                    <div key={value} className="flex flex-col items-center">
+                      <span>{value}</span>
+                      <span className="text-[10px] text-slate-500">
+                        {lookbackLabels[value] ?? ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Table */}

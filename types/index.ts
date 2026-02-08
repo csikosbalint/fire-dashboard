@@ -20,7 +20,7 @@ export interface StockDataResult {
 
 // Sharpe calculation types
 export interface SharpeResult {
-  ticker: string | null;
+  ticker: string;
   yesterday: string | null;
   lastWeek: string | null;
   lastMonth: string | null;
@@ -37,6 +37,8 @@ export interface SharpeStore {
   addTicker: (ticker: string) => void;
   removeTicker: (ticker: string) => void;
   clearTickers: () => void;
+  lookback: number;
+  setLookback: (lookback: number) => void;
 }
 
 export enum CalculationPeriod {

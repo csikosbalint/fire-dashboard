@@ -16,7 +16,7 @@ const getCachedStockData = unstable_cache(
     try {
       // Fetch last 3 years of historical data
       const endDate = new Date(Date.now() - 1); // yesterday
-      const startDate = new Date(endDate.getTime() - 3 * 365 * 24 * 60 * 60 * 1000);
+      const startDate = new Date(endDate.getTime() - 10 * 365 * 24 * 60 * 60 * 1000);
 
       const result = await yahooFinance.chart(ticker, {
         period1: startDate,

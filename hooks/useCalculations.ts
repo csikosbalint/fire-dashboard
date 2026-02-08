@@ -1,25 +1,36 @@
 import { CalculationPeriod, HistoricalData, SharpeResult } from '@/types';
 import { calculateStandardDeviation } from '@railpath/finance-toolkit';
-const FISC_YEAR_DAYS = 250; // Trading days in a year
 
-function enhanceWithSimpleSharpe({ historicalData, period = CalculationPeriod.Y1, ticker }: { historicalData: HistoricalData[]; period?: CalculationPeriod, ticker?: string }): void {
+const DEFAULT_LOOKBACK = 250; // Trading days in a year
+
+function enhanceWithSimpleSharpe({
+  historicalData,
+  period = CalculationPeriod.Y1,
+  ticker,
+  lookback = DEFAULT_LOOKBACK,
+}: {
+  historicalData: HistoricalData[];
+  period?: CalculationPeriod;
+  ticker?: string;
+  lookback?: number;
+}): void {
   let firstT = true;
   let firstS = true;
   console.log(`${ticker} Historical data length `, historicalData.length);
   console.log(`${ticker} Oldest first ${historicalData[0].date} close ${historicalData[0].close}`);
   historicalData.forEach((quote, index) => {
-    const isEnoughPrice = index >= FISC_YEAR_DAYS; // we need 1 period of price data to calculate trailing(period) return
+    const isEnoughPrice = index >= lookback; // we need 1 period of price data to calculate trailing(period) return
     if (!isEnoughPrice) return; // first trailing(period) return calculation
     if (firstT) {
       console.log(`${ticker} trailing return`, index, quote.date, quote.close);
       firstT = false;
     }
-    quote.trailingReturn1Y = isEnoughPrice ? Number((((quote.close - historicalData[index - FISC_YEAR_DAYS].close) / historicalData[index - FISC_YEAR_DAYS].close) * 100).toFixed(2)) : undefined;
-    const isDataEnough = index >= 2 * FISC_YEAR_DAYS; // we need +1 period of trailing returns to calculate stddev(period) from trailing returns
+    quote.trailingReturn1Y = isEnoughPrice ? Number((((quote.close - historicalData[index - lookback].close) / historicalData[index - lookback].close) * 100).toFixed(2)) : undefined;
+    const isDataEnough = index >= 2 * lookback; // we need +1 period of trailing returns to calculate stddev(period) from trailing returns
     if (!isDataEnough) return; // first stddev(period)
     quote.stdDev1Y = isDataEnough ? Number(
       calculateStandardDeviation(
-        historicalData.slice(index - FISC_YEAR_DAYS, index)
+        historicalData.slice(index - lookback, index)
           .map(d => Number(d.trailingReturn1Y))
       ).toFixed(2))
       : undefined;
@@ -69,17 +80,21 @@ async function fetchStockData(tickers: string[]): Promise<{ ticker: string; hist
   return Promise.all(promises);
 }
 
-function calculateSharpeFromData(historicalData: HistoricalData[], ticker?: string): Omit<SharpeResult, 'ticker' | 'loading'> {
+function calculateSharpeFromData(
+  historicalData: HistoricalData[],
+  ticker?: string,
+  lookback: number = DEFAULT_LOOKBACK
+): Omit<SharpeResult, 'ticker' | 'loading'> {
   try {
-    enhanceWithSimpleSharpe({ historicalData, ticker });
+    enhanceWithSimpleSharpe({ historicalData, ticker, lookback });
 
     return {
       yesterday: `${historicalData[historicalData.length - 1].date}${historicalData[historicalData.length - 1].trailingReturn1Y}/${historicalData[historicalData.length - 1].stdDev1Y}=${historicalData[historicalData.length - 1].sharpeRatio1Y}`,
       lastWeek: `${historicalData[historicalData.length - 5].date}: ${historicalData[historicalData.length - 5].trailingReturn1Y}/${historicalData[historicalData.length - 5].stdDev1Y}=${historicalData[historicalData.length - 5].sharpeRatio1Y}`,
-      lastMonth: `${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 12)].date}: ${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 12)].trailingReturn1Y}/${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 12)].stdDev1Y}=${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 12)].sharpeRatio1Y}`,
-      lastQuarter: `${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 4)].date}: ${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 4)].trailingReturn1Y}/${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 4)].stdDev1Y}=${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 4)].sharpeRatio1Y}`,
-      lastSemester: `${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 2)].date}: ${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 2)].trailingReturn1Y}/${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 2)].stdDev1Y}=${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS / 2)].sharpeRatio1Y}`,
-      lastYear: `${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS)].date}: ${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS)].trailingReturn1Y}/${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS)].stdDev1Y}=${historicalData[historicalData.length - Math.round(FISC_YEAR_DAYS)].sharpeRatio1Y}`,
+      lastMonth: `${historicalData[historicalData.length - Math.round(lookback / 12)].date}: ${historicalData[historicalData.length - Math.round(lookback / 12)].trailingReturn1Y}/${historicalData[historicalData.length - Math.round(lookback / 12)].stdDev1Y}=${historicalData[historicalData.length - Math.round(lookback / 12)].sharpeRatio1Y}`,
+      lastQuarter: `${historicalData[historicalData.length - Math.round(lookback / 4)].date}: ${historicalData[historicalData.length - Math.round(lookback / 4)].trailingReturn1Y}/${historicalData[historicalData.length - Math.round(lookback / 4)].stdDev1Y}=${historicalData[historicalData.length - Math.round(lookback / 4)].sharpeRatio1Y}`,
+      lastSemester: `${historicalData[historicalData.length - Math.round(lookback / 2)].date}: ${historicalData[historicalData.length - Math.round(lookback / 2)].trailingReturn1Y}/${historicalData[historicalData.length - Math.round(lookback / 2)].stdDev1Y}=${historicalData[historicalData.length - Math.round(lookback / 2)].sharpeRatio1Y}`,
+      lastYear: `${historicalData[historicalData.length - Math.round(lookback)].date}: ${historicalData[historicalData.length - Math.round(lookback)].trailingReturn1Y}/${historicalData[historicalData.length - Math.round(lookback)].stdDev1Y}=${historicalData[historicalData.length - Math.round(lookback)].sharpeRatio1Y}`,
     };
   } catch (error) {
     return {
@@ -94,7 +109,10 @@ function calculateSharpeFromData(historicalData: HistoricalData[], ticker?: stri
   }
 }
 
-async function calculateSharpe(tickers: string[]): Promise<SharpeResult[]> {
+async function calculateSharpe(
+  tickers: string[],
+  lookback: number = DEFAULT_LOOKBACK
+): Promise<SharpeResult[]> {
   if (tickers.length === 0) {
     return [];
   }
@@ -115,7 +133,11 @@ async function calculateSharpe(tickers: string[]): Promise<SharpeResult[]> {
       };
     }
 
-    const calculations = calculateSharpeFromData(data.historicalData.slice(data.historicalData.length - 3 * FISC_YEAR_DAYS), data.ticker);
+    const calculations = calculateSharpeFromData(
+      data.historicalData.slice(data.historicalData.length - 3 * lookback),
+      data.ticker,
+      lookback
+    );
     return {
       ticker: data.ticker,
       ...calculations,

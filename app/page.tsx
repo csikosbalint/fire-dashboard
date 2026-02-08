@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -117,12 +118,21 @@ export default function StockDashboard() {
       <div className="mx-auto max-w-6xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Market Data Dashboard:
-          </h1>
-          <p className="text-slate-400">
-            Fetch historical stock data with automatic 1-hour caching
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-white mb-2">
+                Market Data Dashboard:
+              </h1>
+              <p className="text-slate-400">
+                Fetch historical stock data with automatic 1-hour caching
+              </p>
+            </div>
+            <Link href="/sharpe">
+              <Button className="bg-purple-600 hover:bg-purple-700">
+                Sharpe Ratio
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Input Section */}
