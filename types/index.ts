@@ -40,7 +40,3 @@ export interface SharpeStore {
   lookback: number;
   setLookback: (lookback: number) => void;
 }
-
-export enum CalculationPeriod {
-  Y1 = '1y',
-}

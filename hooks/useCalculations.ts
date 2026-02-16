@@ -1,47 +1,54 @@
-import { CalculationPeriod, HistoricalData, SharpeResult } from '@/types';
+import { HistoricalData, SharpeResult } from '@/types';
 import { calculateStandardDeviation } from '@railpath/finance-toolkit';
 
 const DEFAULT_LOOKBACK = 250; // Trading days in a year
 
 function enhanceWithSimpleSharpe({
   historicalData,
-  period = CalculationPeriod.Y1,
   ticker,
   lookback = DEFAULT_LOOKBACK,
 }: {
   historicalData: HistoricalData[];
-  period?: CalculationPeriod;
   ticker?: string;
   lookback?: number;
 }): void {
   let firstT = true;
   let firstS = true;
   console.log(`${ticker} Historical data length `, historicalData.length);
+  if (new Date(historicalData[0].date) > new Date(historicalData[historicalData.length - 1].date)) {
+    console.warn(`${ticker} Historical data is not in chronological order. Please ensure the data is sorted from oldest to newest.`);
+    throw new Error("Historical data is not in chronological order.");
+  }
   console.log(`${ticker} Oldest first ${historicalData[0].date} close ${historicalData[0].close}`);
   historicalData.forEach((quote, index) => {
     const isEnoughPrice = index >= lookback; // we need 1 period of price data to calculate trailing(period) return
     if (!isEnoughPrice) return; // first trailing(period) return calculation
     if (firstT) {
-      console.log(`${ticker} trailing return`, index, quote.date, quote.close);
+      console.log(`${ticker} 1st: trailing return`, index, quote.date, quote.close);
       firstT = false;
     }
-    quote.trailingReturn1Y = isEnoughPrice ? Number((((quote.close - historicalData[index - lookback].close) / historicalData[index - lookback].close) * 100).toFixed(2)) : undefined;
-    const isDataEnough = index >= 2 * lookback; // we need +1 period of trailing returns to calculate stddev(period) from trailing returns
-    if (!isDataEnough) return; // first stddev(period)
-    quote.stdDev1Y = isDataEnough ? Number(
+    quote.trailingReturn1Y = isEnoughPrice ? Number((((quote.close - historicalData[index - lookback].close) / historicalData[index - lookback].close) * 100)) : undefined;
+
+    const isEnoughReturn = index >= 2 * lookback; // we need 1+1 period of trailing returns to calculate stddev(period) from trailing returns
+    if (!isEnoughReturn) return; // first stddev(period)
+    const dataSlice = historicalData.slice(index - lookback, index + 1)
+    quote.stdDev1Y = Number(
       calculateStandardDeviation(
-        historicalData.slice(index - lookback, index)
+        dataSlice
           .map(d => Number(d.trailingReturn1Y))
-      ).toFixed(2))
-      : undefined;
-    // my simplified sharpe ratio = trailingReturn(period) / stddev(period)
-    quote.sharpeRatio1Y = isDataEnough ? Number((quote.trailingReturn1Y! / quote.stdDev1Y!).toFixed(2)) : undefined;
+      )
+    )
+    // the simplified sharpe ratio = trailingReturn(period) / stddev(period)
+    quote.sharpeRatio1Y = Number(
+      (quote.trailingReturn1Y! / quote.stdDev1Y!)
+    )
     if (firstS) {
-      console.log(`${ticker} trailing return, stddev, sharpe`, index, quote.date, quote.close, quote.trailingReturn1Y, quote.stdDev1Y, quote.sharpeRatio1Y);
+      console.log(`${ticker}  1st: (close1-close2)=trailing return, stddev, sharpe `, index, quote.date, quote.close, historicalData[index - lookback].close, quote.trailingReturn1Y, quote.stdDev1Y, quote.sharpeRatio1Y);
       firstS = false;
     }
+
     if (index === historicalData.length - 1) {
-      console.log(`${ticker} today `, index, quote.date, quote.close, quote.trailingReturn1Y, quote.stdDev1Y, quote.sharpeRatio1Y);
+      console.log(`${ticker} last: trailing return, stddev, sharpe `, index, quote.date, quote.close, quote.trailingReturn1Y, quote.stdDev1Y, quote.sharpeRatio1Y);
     }
   });
 }
@@ -89,12 +96,12 @@ function calculateSharpeFromData(
     enhanceWithSimpleSharpe({ historicalData, ticker, lookback });
 
     return {
-      yesterday: `${historicalData[historicalData.length - 1].date}${historicalData[historicalData.length - 1].trailingReturn1Y}/${historicalData[historicalData.length - 1].stdDev1Y}=${historicalData[historicalData.length - 1].sharpeRatio1Y}`,
-      lastWeek: `${historicalData[historicalData.length - 5].date}: ${historicalData[historicalData.length - 5].trailingReturn1Y}/${historicalData[historicalData.length - 5].stdDev1Y}=${historicalData[historicalData.length - 5].sharpeRatio1Y}`,
-      lastMonth: `${historicalData[historicalData.length - Math.round(lookback / 12)].date}: ${historicalData[historicalData.length - Math.round(lookback / 12)].trailingReturn1Y}/${historicalData[historicalData.length - Math.round(lookback / 12)].stdDev1Y}=${historicalData[historicalData.length - Math.round(lookback / 12)].sharpeRatio1Y}`,
-      lastQuarter: `${historicalData[historicalData.length - Math.round(lookback / 4)].date}: ${historicalData[historicalData.length - Math.round(lookback / 4)].trailingReturn1Y}/${historicalData[historicalData.length - Math.round(lookback / 4)].stdDev1Y}=${historicalData[historicalData.length - Math.round(lookback / 4)].sharpeRatio1Y}`,
-      lastSemester: `${historicalData[historicalData.length - Math.round(lookback / 2)].date}: ${historicalData[historicalData.length - Math.round(lookback / 2)].trailingReturn1Y}/${historicalData[historicalData.length - Math.round(lookback / 2)].stdDev1Y}=${historicalData[historicalData.length - Math.round(lookback / 2)].sharpeRatio1Y}`,
-      lastYear: `${historicalData[historicalData.length - Math.round(lookback)].date}: ${historicalData[historicalData.length - Math.round(lookback)].trailingReturn1Y}/${historicalData[historicalData.length - Math.round(lookback)].stdDev1Y}=${historicalData[historicalData.length - Math.round(lookback)].sharpeRatio1Y}`,
+      yesterday: `${historicalData[historicalData.length - 1].date}: ${historicalData[historicalData.length - 1].trailingReturn1Y?.toFixed(2)}/${historicalData[historicalData.length - 1].stdDev1Y?.toFixed(2)}=${historicalData[historicalData.length - 1].sharpeRatio1Y?.toFixed(2)}`,
+      lastWeek: `${historicalData[historicalData.length - 5].date}: ${historicalData[historicalData.length - 5].trailingReturn1Y?.toFixed(2)}/${historicalData[historicalData.length - 5].stdDev1Y?.toFixed(2)}=${historicalData[historicalData.length - 5].sharpeRatio1Y?.toFixed(2)}`,
+      lastMonth: `${historicalData[historicalData.length - Math.round(250 / 12)].date}: ${historicalData[historicalData.length - Math.round(250 / 12)].trailingReturn1Y?.toFixed(2)}/${historicalData[historicalData.length - Math.round(250 / 12)].stdDev1Y?.toFixed(2)}=${historicalData[historicalData.length - Math.round(250 / 12)].sharpeRatio1Y?.toFixed(2)}`,
+      lastQuarter: `${historicalData[historicalData.length - Math.round(250 / 4)].date}: ${historicalData[historicalData.length - Math.round(250 / 4)].trailingReturn1Y?.toFixed(2)}/${historicalData[historicalData.length - Math.round(250 / 4)].stdDev1Y?.toFixed(2)}=${historicalData[historicalData.length - Math.round(250 / 4)].sharpeRatio1Y?.toFixed(2)}`,
+      lastSemester: `${historicalData[historicalData.length - Math.round(250 / 2)].date}: ${historicalData[historicalData.length - Math.round(250 / 2)].trailingReturn1Y?.toFixed(2)}/${historicalData[historicalData.length - Math.round(250 / 2)].stdDev1Y?.toFixed(2)}=${historicalData[historicalData.length - Math.round(250 / 2)].sharpeRatio1Y?.toFixed(2)}`,
+      lastYear: `${historicalData[historicalData.length - Math.round(250)].date}: ${historicalData[historicalData.length - Math.round(250)].trailingReturn1Y?.toFixed(2)}/${historicalData[historicalData.length - Math.round(250)].stdDev1Y?.toFixed(2)}=${historicalData[historicalData.length - Math.round(250)].sharpeRatio1Y?.toFixed(2)}`,
     };
   } catch (error) {
     return {

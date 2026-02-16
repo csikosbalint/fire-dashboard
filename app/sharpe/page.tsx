@@ -2276,7 +2276,7 @@ export default function SharpePage() {
       {
         ticker: 'TEST',
         ...calculateSharpeFromData(
-          alldata.slice(alldata.length - 3 * lookback),
+          alldata,
           'TEST',
           lookback
         ),
