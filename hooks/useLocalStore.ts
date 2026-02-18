@@ -1,6 +1,16 @@
+/**
+ * Zustand Store for Sharpe Calculator
+ * 
+ * Persistent state management with localStorage.
+ * Uses domain validators for data integrity.
+ */
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { SharpeStore } from '@/types';
+import { validateTicker } from '@/domain/stock/validator';
+import { validateLookback } from '@/domain/stock/validator';
+import { LOOKBACK_MIN, LOOKBACK_MAX } from '@/domain/constants';
 
 export const useTickers = create<SharpeStore>()(
   persist(
@@ -10,10 +20,18 @@ export const useTickers = create<SharpeStore>()(
       addTicker: (ticker) =>
         set((state) => {
           const upperTicker = ticker.toUpperCase().trim();
-          if (upperTicker && !state.tickers.includes(upperTicker)) {
-            return { tickers: [...state.tickers, upperTicker] };
+
+          // Validate ticker using domain validator
+          if (!validateTicker(upperTicker)) {
+            return state; // Invalid ticker, don't add
           }
-          return state;
+
+          // Check for duplicates
+          if (state.tickers.includes(upperTicker)) {
+            return state;
+          }
+
+          return { tickers: [...state.tickers, upperTicker] };
         }),
       removeTicker: (ticker) =>
         set((state) => ({
@@ -21,8 +39,15 @@ export const useTickers = create<SharpeStore>()(
         })),
       clearTickers: () => set({ tickers: [] }),
       setLookback: (lookback) =>
-        set({
-          lookback: Math.min(1000, Math.max(1, Math.round(lookback || 1))),
+        set((state) => {
+          // Validate lookback using domain validator
+          const validation = validateLookback(lookback);
+
+          if (!validation.valid || !validation.data) {
+            return state; // Invalid lookback, don't update
+          }
+
+          return { lookback: validation.data };
         }),
     }),
     {

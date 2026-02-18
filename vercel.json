@@ -4,5 +4,15 @@
   "installCommand": "npm install",
   "git": {
     "deploymentEnabled": true
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/refresh-cache",
+      "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/cron/calculate-sharpe",
+      "schedule": "0 8 * * *"
+    }
+  ]
 }

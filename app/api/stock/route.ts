@@ -1,31 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { fetchMultipleStocks } from '@/lib/stockData';
+/**
+ * Stock Data API Route
+ * 
+ * POST endpoint for fetching historical stock data.
+ * Uses layered architecture: Middleware → Adapters → Services → Domain
+ */
+
+import { NextRequest } from 'next/server';
+import { validateStockRequest, parseRequestBody } from '@/lib/middleware/validation';
+import { handleStockDataRequest, createErrorResponse } from '@/adapters/api/routeHandlers';
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { tickers } = body;
+  // Parse request body
+  const body = await parseRequestBody(request);
 
-    // Validate input
-    if (!tickers || !Array.isArray(tickers) || tickers.length === 0) {
-      return NextResponse.json(
-        { error: 'Invalid tickers array' },
-        { status: 400 }
-      );
-    }
-
-    // Limit to 10 tickers per request
-    const limitedTickers = tickers.slice(0, 10);
-
-    // Fetch data for all tickers
-    const results = await fetchMultipleStocks(limitedTickers);
-
-    return NextResponse.json(results);
-  } catch (error) {
-    console.error('API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+  if (!body) {
+    return createErrorResponse('Invalid request body', 400);
   }
+
+  // Validate request using middleware
+  const validation = validateStockRequest(body);
+
+  if (!validation.valid) {
+    return createErrorResponse(validation.error || 'Validation failed', 400);
+  }
+
+  // Handle request using adapter
+  return handleStockDataRequest(validation.data!.tickers);
 }
